@@ -240,19 +240,20 @@ def _draw_gradient(canvas, x1, y1, x2, y2, c1, c2, steps=80):
 
 
 class FlexASIOGUI:
-    # Rich navy/indigo palette — no flat black.
-    BG = "#0a1128"          # deep navy window background
-    BG_GRAD_1 = "#0c1533"   # header gradient start
-    BG_GRAD_2 = "#1a2a55"   # header gradient end
-    PANEL = "#141d38"       # section panel surface
-    PANEL_EDGE = "#223058"
-    FIELD = "#0a1325"       # input well
+    # Bright indigo/violet palette — clearly colorful, no black void.
+    BG = "#263158"          # medium indigo window background
+    BG_GRAD_1 = "#2e3d6e"   # header gradient start
+    BG_GRAD_2 = "#4a5da6"   # header gradient mid (vivid indigo)
+    BG_GRAD_3 = "#6a4fb0"   # header gradient end (violet)
+    PANEL = "#33437a"       # section panel surface
+    PANEL_EDGE = "#6678c0"  # visible panel edge
+    FIELD = "#232d52"       # input well
     FG = "#ffffff"          # pure white text
-    MUTED = "#8ea0c0"       # slate secondary text
-    CYAN = "#22d3ee"        # input accent
-    GREEN = "#34d399"       # output / save accent
-    PURPLE = "#a78bfa"      # brand accent
-    DANGER = "#f87171"
+    MUTED = "#c3cdec"       # light slate secondary text
+    CYAN = "#2ad4f0"        # input accent
+    GREEN = "#3ed9a0"       # output / save accent
+    PURPLE = "#b794f6"      # brand accent
+    DANGER = "#ff8a8a"
 
     def __init__(self, root):
         self.root = root
@@ -423,8 +424,12 @@ class FlexASIOGUI:
 
     def _paint_header(self, width):
         self.header.delete("all")
+        mid = int(width * 0.55)
         _draw_gradient(
-            self.header, 0, 0, width, 76, self.BG_GRAD_1, self.BG_GRAD_2
+            self.header, 0, 0, mid, 76, self.BG_GRAD_1, self.BG_GRAD_2
+        )
+        _draw_gradient(
+            self.header, mid, 0, width, 76, self.BG_GRAD_2, self.BG_GRAD_3
         )
         # Neon accent hairline at the bottom edge.
         self.header.create_line(
