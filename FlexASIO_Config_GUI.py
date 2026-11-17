@@ -302,9 +302,12 @@ class Segmented(ttk.Frame):
 
 
 class DetentSlider(ttk.Frame):
-    """A slider with discrete detent positions. The end detents have a
-    widened deadzone so landing on min/max (e.g. 0 ms latency) is easy —
-    no fighting to hit the exact value."""
+    """A slider with discrete detent positions and a generous click target.
+
+    You don't have to hit the thumb precisely: clicking anywhere on the
+    track line (or a few pixels above/below it) jumps the handle to the
+    nearest detent. The end detents also have a widened zone so landing on
+    min/max (e.g. 0 ms latency) is easy."""
 
     def __init__(self, parent, detents, labels, initial_index=0,
                  on_change=None):
@@ -312,32 +315,69 @@ class DetentSlider(ttk.Frame):
         self.detents = detents
         self.labels = labels
         self.on_change = on_change
+        self.n = len(detents)
         self.value = detents[initial_index]
+        self._syncing = False
 
         self.scale = ttk.Scale(
-            self, from_=0, to=len(detents) - 1,
+            self, from_=0, to=self.n - 1,
             value=initial_index, command=self._drag,
         )
-        self.scale.pack(side="left", fill="x", expand=True, pady=4)
+        # Extra vertical padding widens the click target above/below the
+        # track so you don't need to hit the handle exactly.
+        self.scale.pack(side="left", fill="x", expand=True, pady=8)
         self.label = ttk.Label(
             self, text=labels[initial_index], width=16, anchor="e",
             font=(FONT, 9, "bold"),
         )
         self.label.pack(side="right", padx=(8, 0))
 
-    def _drag(self, raw):
-        f = float(raw)
-        n = len(self.detents)
-        # Widened deadzone at the ends for easy handling.
+        # Bigger hit area: clicks/drags on the padding (this frame) and on
+        # the track itself both jump the handle to the nearest detent.
+        self.bind("<ButtonPress-1>", self._jump)
+        self.bind("<B1-Motion>", self._jump)
+        self.scale.bind("<ButtonPress-1>", self._jump)
+        self.scale.bind("<B1-Motion>", self._jump)
+
+    def _snap(self, f):
+        n = self.n
+        # Widened zone at the ends for easy handling.
         if f < 0.75:
-            idx = 0
-        elif f > n - 1.75:
-            idx = n - 1
-        else:
-            idx = int(round(f))
-        idx = max(0, min(n - 1, idx))
+            return 0
+        if f > n - 1.75:
+            return n - 1
+        return max(0, min(n - 1, int(round(f))))
+
+    def _set_index(self, idx):
+        idx = max(0, min(self.n - 1, idx))
         self.value = self.detents[idx]
         self.label.config(text=self.labels[idx])
+        # Snap the thumb visually. scale.set() re-fires the -command
+        # callback, so guard against re-entrancy.
+        if self._syncing:
+            return
+        self._syncing = True
+        try:
+            self.scale.set(idx)
+        finally:
+            self._syncing = False
+
+    def _jump(self, event):
+        w = self.scale.winfo_width()
+        if w <= 1:
+            return "break"
+        # Map the horizontal click position to a detent index. The scale is
+        # packed flush-left, so event.x is the position along the track.
+        f = (event.x / w) * (self.n - 1)
+        self._set_index(self._snap(f))
+        if self.on_change:
+            self.on_change()
+        return "break"
+
+    def _drag(self, raw):
+        if self._syncing:
+            return
+        self._set_index(self._snap(float(raw)))
         if self.on_change:
             self.on_change()
 
@@ -349,9 +389,7 @@ class DetentSlider(ttk.Frame):
             idx = min(range(len(self.detents)),
                       key=lambda i: abs(self.detents[i] - v)) \
                 if self.detents[0] is not None else 0
-        self.scale.set(idx)
-        self.value = self.detents[idx]
-        self.label.config(text=self.labels[idx])
+        self._set_index(idx)
 
 
 class FlexASIOGUI:
